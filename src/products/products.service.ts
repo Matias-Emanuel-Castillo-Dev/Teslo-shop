@@ -60,8 +60,14 @@ export class ProductsService {
       take: limit,
       skip: offset,
       // TODO: relaciones
+      relations:{
+        images:true // * me traigo la relacion con la tabla ProductImage
+      }
     })
-    return products;
+    return products.map(p => ({
+      ...p,
+      images: p.images?.map( img => img.url )
+    }));
   }
 
   async findOne(term: string) {
@@ -72,15 +78,18 @@ export class ProductsService {
       
     } else {
       // ! querybuilder evita sql injection
-      const queryBuilder = this.productRepository.createQueryBuilder();
+      const queryBuilder = this.productRepository.createQueryBuilder('prod');// * 'prod' es el alias de la tabla product
       // * Querybuilder es case sensitive => aplicamos la funcion UPPER de postgres 
       product = await queryBuilder
         .where('UPPER(title) =:title or slug =:slug', {
           title: term.toUpperCase(),
           slug: term.toLowerCase(),
-        }).getOne();
+        })
+        // * prod.images : campo con el que queremos hacer el leftjoin
+        // * prodImages : alias por si queremos seguir rtabajando
+        .leftJoinAndSelect('prod.images', 'prodImages')
+        .getOne()
     }
-
 
     if (!product)
       throw new NotFoundException(`Product with ${term} not found`);
@@ -88,11 +97,22 @@ export class ProductsService {
     return product;
   }
 
+  async findOnePlain(term: string){
+    const {images = [], ...rest} = await this.findOne(term);
+    return {
+      ...rest,
+      images: images.map(img => img.url )
+    }
+  }
+
+
+  /* 
+  ! Reemplazado por el findOne
   async findOneBySlug(slug: string) {
     const product = await this.productRepository.findOneBy({ slug });
     return product;
   }
-
+  
   async findOneByQuery(term: string) {
     let product: Product;
     if (isUUID(term)) {
@@ -100,6 +120,7 @@ export class ProductsService {
     }
     throw new Error('Method not implemented.');
   }
+  */
 
   async update(id: string, updateProductDto: UpdateProductDto) {
 
