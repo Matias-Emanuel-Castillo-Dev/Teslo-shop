@@ -11,3 +11,8 @@
 ```
 docker compose up -d
 ```
+6. Levantar api: ```pnpm run start:dev ```
+7. Ejecutar SEED ( GET method )
+```
+http://localhost:3000/api/seed
+```
