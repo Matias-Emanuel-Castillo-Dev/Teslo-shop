@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
@@ -17,7 +17,9 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
 
     @InjectRepository(ProductImage)
-    private readonly productImageRepository: Repository<ProductImage>
+    private readonly productImageRepository: Repository<ProductImage>,
+
+    private readonly dataSource: DataSource
   ){ }
 
 
@@ -70,16 +72,20 @@ export class ProductsService {
     }));
   }
 
-  async findOne(term: string) {
+  /**
+   * * Conceptos:
+   * * 1. QueryBuilder 
+   */
+  private async findOne(term: string) {
     let product: Product | null;
 
     if (isUUID(term)) {
       product = await this.productRepository.findOneBy({ id: term });
-      
+
     } else {
       // ! querybuilder evita sql injection
       const queryBuilder = this.productRepository.createQueryBuilder('prod');// * 'prod' es el alias de la tabla product
-      // * Querybuilder es case sensitive => aplicamos la funcion UPPER de postgres 
+      // * Querybuilder es case sensitive => aplicamos la funcion UPPER de postgres
       product = await queryBuilder
         .where('UPPER(title) =:title or slug =:slug', {
           title: term.toUpperCase(),
@@ -105,38 +111,53 @@ export class ProductsService {
     }
   }
 
-
-  /* 
-  ! Reemplazado por el findOne
-  async findOneBySlug(slug: string) {
-    const product = await this.productRepository.findOneBy({ slug });
-    return product;
-  }
-  
-  async findOneByQuery(term: string) {
-    let product: Product;
-    if (isUUID(term)) {
-      product = await this.findOne(term);
-    }
-    throw new Error('Method not implemented.');
-  }
-  */
-
+  /**
+   * * Conceptos: 
+   * * 1.Preload: Sirve para traernos los campos y sus datos faltantes de un registro de la DB
+   * * 2.QueryRunner
+   */ 
   async update(id: string, updateProductDto: UpdateProductDto) {
-
-    const product = await this.productRepository.preload({
-      id:id,
-      ...updateProductDto,
-      images: []
-    })
-
+    const { images , ...toUpdate } = updateProductDto;
+    const product = await this.productRepository.preload({id,...toUpdate})
     if(!product) throw new NotFoundException(`Product with ${id} not found`);
+
+    /**
+     * * QueryRunner:  en TypeORM es un objeto que permite ejecutar consultas de manera directa y 
+     * * controlar una conexión única e independiente con la base de datos.
+     * * Sirve para:
+     * * 1. Gestion de conexiones
+     * * 2. Transacciones: serie de querys que pueden cambiar la db (ABM). Permite realizar commit y  rollback
+     * * 3. Migraciones
+     * * 4. Custom's Query
+     */
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-      await this.productRepository.save(product);
+      /**
+       * * Si el producto viene con imagenes para actualizar
+       */
+      if(images){
+        // ! mucho cuidado con hacer => delete * from ProductImage
+        await queryRunner.manager.delete(ProductImage,{ product: { id } }); // * query: " DELETE * from ProducImage WHERE productId = ${id} "
+        product.images = images.map(img => this.productImageRepository.create({url:img}));
+      }
+
+      await queryRunner.manager.save(product);
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+      
+      // await this.productRepository.save(product);
+      return this.findOnePlain(id);
     } catch (error) {
-      this.handleDBExceptions(error);      
+
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      this.handleDBExceptions(error);
     }
-    return product; 
+
   }
 
   async remove(id: string) {
