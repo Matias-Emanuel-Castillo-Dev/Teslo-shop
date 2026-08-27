@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto, LoginUserDto } from './dto';
+import { AuthGuard } from './auth-guard/auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -11,6 +12,7 @@ export class AuthController {
     return await this.authService.create(createUserDto);
   }
 
+  @HttpCode(HttpStatus.OK)
   @Post('login')
   async loginUser(
     @Body() loginUserDto: LoginUserDto
@@ -18,7 +20,8 @@ export class AuthController {
     return await this.authService.login(loginUserDto);
   }
 
-  @Get()
+  @UseGuards(AuthGuard)
+  @Get('users')
   async findAll(){
     return await this.authService.findAll();
   }
