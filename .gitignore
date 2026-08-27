@@ -62,3 +62,7 @@ postgres/
 
 #opencode files
 sesion-opencode.txt
+
+#load files
+files/
+static/
