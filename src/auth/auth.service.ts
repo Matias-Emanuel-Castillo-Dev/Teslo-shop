@@ -6,6 +6,7 @@ import { User } from './entities/user.entity';
 import * as bcrypt from "bcrypt"; // importamos todo
 import { LoginUserDto } from './dto';
 import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 @Injectable()
 export class AuthService {
@@ -38,7 +39,7 @@ export class AuthService {
     const { password, email } = loginUserDto;
     const user = await this.userRepository.findOne({
       where: { email },
-      select: { email: true, password: true }
+      select: { email: true, password: true, id: true } // ! Pedir los datos que queremos guardar en el payload
     });
 
     if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -47,11 +48,7 @@ export class AuthService {
 
     // TODO: return JWT
 
-    const payload = {
-      email: user.email,
-      roles: user.roles,
-      sub: user.id
-    }
+    const payload = this.getJwtPayload(user);
 
     const jwt = await this.jwtService.signAsync(payload);
 
@@ -69,6 +66,11 @@ export class AuthService {
       throw new BadRequestException(error.detail);
     }
     throw new InternalServerErrorException('Please check server logs ')
+  }
+
+  private getJwtPayload(user:User): JwtPayload{
+    const { email, roles, id} = user;
+    return {email, roles, sub:id};
   }
 
 }
