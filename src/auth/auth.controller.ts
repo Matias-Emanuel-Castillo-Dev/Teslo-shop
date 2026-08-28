@@ -64,5 +64,11 @@ export class AuthController {
   getProfilethree(){
     return {msg: 'hola'};
   }
-
+  @Get('refresh-token')
+  @UseGuards(AuthGuard('jwt'), IsUserActiveGuard)
+  async refreshJwt(
+    @GetUser() user:User, // * obtener el usuario con el decorador
+  ){
+    return await this.authService.refresh(user);
+  }
 }

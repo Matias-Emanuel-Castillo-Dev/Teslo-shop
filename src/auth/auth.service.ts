@@ -11,7 +11,6 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 @Injectable()
 export class AuthService {
 
-
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -38,8 +37,8 @@ export class AuthService {
   async login(loginUserDto: LoginUserDto) {
     const { password, email } = loginUserDto;
     const user = await this.userRepository.findOne({
-      where: { email },
-      select: { email: true, password: true, id: true } // ! Pedir los datos que queremos guardar en el payload
+      where: { email }
+      //select: { email: true, password: true, id: true } // ! Pedir los datos que queremos guardar en el payload
     });
 
     if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -52,10 +51,29 @@ export class AuthService {
 
     const jwt = await this.jwtService.signAsync(payload);
 
-    return { token: jwt };
+    return {
+      user:{
+        email:user.email,
+        fullName: user.fullName        
+      },
+      token: jwt
+     };
 
   }
 
+  async refresh(user: User) {
+    const payload = this.getJwtPayload(user);
+
+    const jwt = await this.jwtService.signAsync(payload);
+
+    return {
+      user:{
+        email:user.email,
+        fullName: user.fullName        
+      },
+      token: jwt
+     };
+  }
 
   async findAll() {
     return await this.userRepository.find();
