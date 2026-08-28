@@ -6,6 +6,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { validate as isUUID } from "uuid";
 import { Product, ProductImage } from './entities';
+import { User } from 'src/auth/entities/user.entity';
 
 @Injectable()
 export class ProductsService {
@@ -23,7 +24,7 @@ export class ProductsService {
   ){ }
 
 
-  async create(createProductDto: CreateProductDto) {
+  async create(createProductDto: CreateProductDto, user: User) {
     try {
 
       //! Reemplazado por beforeInsert en product.entity.ts
@@ -45,7 +46,8 @@ export class ProductsService {
 
       const product = this.productRepository.create({
         ...productDetails,
-        images: images.map(img => this.productImageRepository.create( { url: img }))
+        images: images.map(img => this.productImageRepository.create( { url: img })),
+        user
       });
 
       await this.productRepository.save(product);
@@ -116,7 +118,7 @@ export class ProductsService {
    * * 1.Preload: Sirve para traernos los campos y sus datos faltantes de un registro de la DB
    * * 2.QueryRunner
    */ 
-  async update(id: string, updateProductDto: UpdateProductDto) {
+  async update(id: string, updateProductDto: UpdateProductDto, user: User) {
     const { images , ...toUpdate } = updateProductDto;
     const product = await this.productRepository.preload({id,...toUpdate})
     if(!product) throw new NotFoundException(`Product with ${id} not found`);
@@ -144,6 +146,8 @@ export class ProductsService {
         await queryRunner.manager.delete(ProductImage,{ product: { id } }); // * query: " DELETE * from ProducImage WHERE productId = ${id} "
         product.images = images.map(img => this.productImageRepository.create({url:img}));
       }
+
+      product.user = user;
 
       await queryRunner.manager.save(product);
       await queryRunner.commitTransaction();

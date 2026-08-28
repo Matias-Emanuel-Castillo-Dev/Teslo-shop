@@ -1,5 +1,6 @@
-import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, OneToMany, OneToOne, PrimaryGeneratedColumn } from "typeorm";
 import { ProductImage } from './index';
+import { User } from "src/auth/entities/user.entity";
 
 @Entity({
   name: 'products'
@@ -25,7 +26,7 @@ export class Product {
     nullable: true
   })
   description!: string;
-  
+
   @Column('text', {
     unique: true
   })
@@ -42,7 +43,7 @@ export class Product {
   sizes!: string[];
 
   //tags
-  @Column('text',{
+  @Column('text', {
     array: true,
     default: []
   })
@@ -52,12 +53,21 @@ export class Product {
   @OneToMany(
     () => ProductImage,
     (productImage) => productImage.product,
-    { 
-      cascade:true,
-      eager:true // Carga las imagenes del producto. Relacion la tabla Product con ProductImage
+    {
+      eager:true // ! carga data relacionada
     }
   )
-  images?:ProductImage[];
+  images?: ProductImage[];
+
+  //user
+  @ManyToOne(
+    () => User,
+    (user) => user.products,
+    {
+      eager: true
+    }
+  )
+  user!: User;
 
   @BeforeInsert()
   checkSlugInsert() {
