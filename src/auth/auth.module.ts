@@ -38,6 +38,11 @@ import { PassportModule } from '@nestjs/passport';
     */
   ],
   providers: [AuthService, JwtStrategy],
-  exports: [TypeOrmModule,JwtStrategy]
+  exports: [
+    TypeOrmModule, 
+    JwtModule,
+    JwtStrategy, 
+    PassportModule, 
+  ]
 })
 export class AuthModule { }
