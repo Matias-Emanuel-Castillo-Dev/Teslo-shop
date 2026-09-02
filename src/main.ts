@@ -7,8 +7,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
+      whitelist: true, // ! Remueve todo lo que esta incluido en los dto's
+      forbidNonWhitelisted: true, // ! retorna bad request si hay propppppiedades en el objeto no requeridas
     })
   );
   
